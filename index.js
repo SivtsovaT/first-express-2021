@@ -1,6 +1,7 @@
 require('dotenv').config()
 const express = require('express')
 const usersApi = require('./users/users')
+const applesApi = require('./apple/apple')
 const credentialsApi = require('./credentials/credentials')
 const bodyParser = require('body-parser')
 const app = express()
@@ -30,12 +31,32 @@ const preAuthorization = (escapePaths) => {
             }
         }
 
+
+        if (escapePaths.includes(req.path)) {
+            next();
+        } else {
+            const authHeader = req.header('Authorization');
+            if (authHeader) {
+                const token = authHeader.split(' ')[1]
+                credentialsDB.authorizeUser(token)
+                    .then(
+                        (appleData) => {
+                            req.authorizationGroups = [...applesData.roles];
+                            next();
+                        }
+                    ).catch((e) => next(e))
+            } else {
+                next('No authorization header')
+            }
+        }
+
     }
 }
 
-app.use(preAuthorization(['/login', '/signIn', '/signUp', '/authorize']));
+//app.use(preAuthorization(['/login', '/signIn', '/signUp', '/authorize']));
 
 app.use('/users', usersApi);
+app.use('/apples', applesApi);
 app.use('/superUsers', usersApi);
 app.use(credentialsApi);
 
